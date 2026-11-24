@@ -8,8 +8,7 @@ defmodule Jobr.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      # Starts a worker by calling: Jobr.Worker.start_link(arg)
-      # {Jobr.Worker, arg}
+      Jobr.Broker
     ]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
