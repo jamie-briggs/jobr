@@ -74,7 +74,7 @@ defmodule Jobr.BrokerTest do
       :ok = Broker.unsubscribe(topic)
       :ok = Broker.send(topic, :ignored)
 
-      refute_receive {:jmsg, ^topic, :ignored}
+      refute_receive {:jobr, ^topic, :ignored}
     end
 
     test "raises for a non-atom topic" do
@@ -85,13 +85,13 @@ defmodule Jobr.BrokerTest do
   end
 
   describe "send/2" do
-    test "delivers {:jmsg, topic, msg} to the subscriber" do
+    test "delivers {:jobr, topic, msg} to the subscriber" do
       topic = unique_topic()
 
       :ok = Broker.subscribe(topic)
       assert Broker.send(topic, :hello) == :ok
 
-      assert_receive {:jmsg, ^topic, :hello}
+      assert_receive {:jobr, ^topic, :hello}
     end
 
     test "delivers to every subscriber of a topic" do
@@ -105,7 +105,7 @@ defmodule Jobr.BrokerTest do
             send(parent, :ready)
 
             receive do
-              {:jmsg, ^topic, msg} -> send(parent, {:got, self(), msg})
+              {:jobr, ^topic, msg} -> send(parent, {:got, self(), msg})
             end
           end)
         end
@@ -133,7 +133,7 @@ defmodule Jobr.BrokerTest do
         send(parent, :ready)
 
         receive do
-          {:jmsg, _, _} = msg -> send(parent, {:unexpected, msg})
+          {:jobr, _, _} = msg -> send(parent, {:unexpected, msg})
         after
           200 -> send(parent, :no_message)
         end
@@ -143,7 +143,7 @@ defmodule Jobr.BrokerTest do
       :ok = Broker.subscribe(topic)
 
       assert Broker.send(topic, :only_mine) == :ok
-      assert_receive {:jmsg, ^topic, :only_mine}
+      assert_receive {:jobr, ^topic, :only_mine}
       assert_receive :no_message, 500
     end
 
@@ -158,8 +158,8 @@ defmodule Jobr.BrokerTest do
       :ok = Broker.send(topic, 1)
       :ok = Broker.send(topic, 2)
 
-      assert_receive {:jmsg, ^topic, 1}
-      assert_receive {:jmsg, ^topic, 2}
+      assert_receive {:jobr, ^topic, 1}
+      assert_receive {:jobr, ^topic, 2}
     end
 
     test "supports arbitrary term payloads" do
@@ -169,7 +169,7 @@ defmodule Jobr.BrokerTest do
       :ok = Broker.subscribe(topic)
       :ok = Broker.send(topic, payload)
 
-      assert_receive {:jmsg, ^topic, ^payload}
+      assert_receive {:jobr, ^topic, ^payload}
     end
 
     test "raises for a non-atom topic" do
@@ -235,11 +235,11 @@ defmodule Jobr.BrokerTest do
 
       :ok = Broker.subscribe(topic)
       :ok = Broker.send(topic, :first)
-      assert_receive {:jmsg, ^topic, :first}
+      assert_receive {:jobr, ^topic, :first}
 
       :ok = Broker.unsubscribe(topic)
       :ok = Broker.send(topic, :second)
-      refute_receive {:jmsg, ^topic, :second}
+      refute_receive {:jobr, ^topic, :second}
 
       flush()
     end

@@ -6,7 +6,7 @@ defmodule Jobr.Broker do
   message published to that topic. Messages are delivered with the standard
   Elixir `send/2` function as a tagged tuple:
 
-      {:jmsg, topic, msg}
+      {:jobr, topic, msg}
 
   ## Design
 
@@ -25,7 +25,7 @@ defmodule Jobr.Broker do
       iex> Jobr.Broker.send(:news, "hello")
       :ok
       # The calling process now has a message in its mailbox:
-      iex> receive do {:jmsg, :news, msg} -> msg end
+      iex> receive do {:jobr, :news, msg} -> msg end
       "hello"
 
   """
@@ -36,7 +36,7 @@ defmodule Jobr.Broker do
   @type topic :: atom()
 
   @typedoc "The tagged tuple delivered to subscribers."
-  @type message :: {:jmsg, topic(), term()}
+  @type message :: {:jobr, topic(), term()}
 
   @doc """
   Returns a child specification for the broker's `Registry`.
@@ -94,7 +94,7 @@ defmodule Jobr.Broker do
   @doc """
   Publishes `msg` to every process subscribed to `topic`.
 
-  Each subscriber receives the tuple `{:jmsg, topic, msg}` via `send/2`.
+  Each subscriber receives the tuple `{:jobr, topic, msg}` via `send/2`.
   Returns `:ok` even when no process is subscribed.
 
   ## Examples
@@ -105,7 +105,7 @@ defmodule Jobr.Broker do
   """
   @spec send(topic(), term()) :: :ok
   def send(topic, msg) when is_atom(topic) do
-    message = {:jmsg, topic, msg}
+    message = {:jobr, topic, msg}
 
     @registry
     |> Registry.dispatch(topic, fn entries ->
