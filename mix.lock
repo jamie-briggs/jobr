@@ -1,0 +1,5 @@
+%{
+  "mqttx": {:hex, :mqttx, "0.13.0", "abc59199adfd9bac6983a875d944399074f6a7208e993728109b9a5fb464e433", [:mix], [{:bandit, "~> 1.6", [hex: :bandit, repo: "hexpm", optional: true]}, {:protox, "~> 2.0", [hex: :protox, repo: "hexpm", optional: true]}, {:ranch, "~> 2.2", [hex: :ranch, repo: "hexpm", optional: true]}, {:telemetry, "~> 1.4", [hex: :telemetry, repo: "hexpm", optional: false]}, {:thousand_island, "~> 1.4", [hex: :thousand_island, repo: "hexpm", optional: true]}, {:websock_adapter, "~> 0.5", [hex: :websock_adapter, repo: "hexpm", optional: true]}], "hexpm", "c869dc0cc2efb1bd134fc14769ed7d85b50dcdfc48af0dcc0c09d48ae713b3bf"},
+  "telemetry": {:hex, :telemetry, "1.4.3", "d0333fa869361e6833d6ff8e806ff4d8553fe1332fcce0af86c7381951a1dc2f", [:rebar3], [], "hexpm", "17a63581cf2e832a238287f5fe6811e8ca1f333249f1376ad653164a3c4770d4"},
+  "thousand_island": {:hex, :thousand_island, "1.6.0", "d6ad7c2220c96a270cc8ca1586ec4d8bde648a4a3a53f003ce093f41beec0288", [:mix], [{:telemetry, "~> 0.4 or ~> 1.0", [hex: :telemetry, repo: "hexpm", optional: false]}], "hexpm", "4d4720470f091fc21a1311777c2ac66916c43621bffc068590c9f9bb3cd057a3"},
+}
