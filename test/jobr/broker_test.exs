@@ -34,7 +34,14 @@ defmodule Jobr.BrokerTest do
       assert Broker.subscribe(topic) == :ok
       assert Broker.subscribe(topic) == :ok
 
-      assert Enum.count(Broker.subscribers(topic), &(&1 == self())) == 2
+      # `subscribers/1` reports distinct pids, so the duplicate is not visible
+      # there; the duplicate shows up as two deliveries of one publish.
+      assert Broker.subscribers(topic) == [self()]
+
+      :ok = Broker.send(topic, :twice)
+      assert_receive {:jobr, ^topic, :twice}
+      assert_receive {:jobr, ^topic, :twice}
+      refute_receive {:jobr, ^topic, :twice}, 50
     end
 
     test "raises for a non-atom, non-binary topic" do
