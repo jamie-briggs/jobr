@@ -8,6 +8,10 @@ defmodule Jobr.BrokerTest do
 
   defp unique_topic, do: :"topic_#{System.unique_integer([:positive])}"
 
+  # A value that is neither an atom nor a binary, built at runtime so the type
+  # checker does not flag the deliberate misuse of the guards under test.
+  defp invalid_topic, do: System.unique_integer([:positive])
+
   defp flush do
     receive do
       _ -> flush()
@@ -33,9 +37,8 @@ defmodule Jobr.BrokerTest do
       assert Enum.count(Broker.subscribers(topic), &(&1 == self())) == 2
     end
 
-    test "raises for a non-atom topic" do
-      {not_an_atom, _} = Code.eval_string(~s("news"))
-      fun = fn -> Broker.subscribe(not_an_atom) end
+    test "raises for a non-atom, non-binary topic" do
+      fun = fn -> Broker.subscribe(invalid_topic()) end
       assert_raise FunctionClauseError, fun
     end
   end
@@ -77,9 +80,8 @@ defmodule Jobr.BrokerTest do
       refute_receive {:jobr, ^topic, :ignored}
     end
 
-    test "raises for a non-atom topic" do
-      {not_an_atom, _} = Code.eval_string(~s("news"))
-      fun = fn -> Broker.unsubscribe(not_an_atom) end
+    test "raises for a non-atom, non-binary topic" do
+      fun = fn -> Broker.unsubscribe(invalid_topic()) end
       assert_raise FunctionClauseError, fun
     end
   end
@@ -172,10 +174,62 @@ defmodule Jobr.BrokerTest do
       assert_receive {:jobr, ^topic, ^payload}
     end
 
-    test "raises for a non-atom topic" do
-      {not_an_atom, _} = Code.eval_string(~s("news"))
-      fun = fn -> Broker.send(not_an_atom, :msg) end
+    test "raises for a non-atom, non-binary topic" do
+      fun = fn -> Broker.send(invalid_topic(), :msg) end
       assert_raise FunctionClauseError, fun
+    end
+  end
+
+  describe "binary (MQTT) topics" do
+    test "subscribe/send/unsubscribe work with a binary topic" do
+      topic = "sensors/room#{System.unique_integer([:positive])}/temp"
+
+      :ok = Broker.subscribe(topic)
+      assert self() in Broker.subscribers(topic)
+
+      :ok = Broker.send(topic, "21.5")
+      assert_receive {:jobr, ^topic, "21.5"}
+
+      :ok = Broker.unsubscribe(topic)
+      refute self() in Broker.subscribers(topic)
+    end
+
+    test "binary topics are matched exactly, not by wildcard" do
+      prefix = "sensors/room#{System.unique_integer([:positive])}"
+      subscribed = "#{prefix}/temp"
+      other = "#{prefix}/humidity"
+
+      :ok = Broker.subscribe(subscribed)
+      :ok = Broker.send(other, "50")
+
+      refute_receive {:jobr, ^other, _}
+      refute_receive {:jobr, ^subscribed, _}
+    end
+
+    test "an atom topic and a binary topic with the same text are distinct" do
+      n = System.unique_integer([:positive])
+      atom_topic = :"shared_#{n}"
+      binary_topic = "shared_#{n}"
+
+      :ok = Broker.subscribe(binary_topic)
+      :ok = Broker.send(atom_topic, :for_atom)
+
+      refute_receive {:jobr, ^atom_topic, :for_atom}
+      refute_receive {:jobr, ^binary_topic, _}
+    end
+
+    test "binary topics do not create atoms" do
+      topic = "sensors/never_an_atom_#{System.unique_integer([:positive])}"
+
+      :ok = Broker.subscribe(topic)
+      :ok = Broker.send(topic, :payload)
+      assert_receive {:jobr, ^topic, :payload}
+
+      # The topic must still be a binary, not an atom created by the broker.
+      assert is_binary(topic)
+      refute String.to_existing_atom(topic)
+    rescue
+      ArgumentError -> :ok
     end
   end
 

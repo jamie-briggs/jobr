@@ -2,12 +2,21 @@ defmodule Jobr.Broker do
   @moduledoc """
   A topic-based publish/subscribe broker.
 
-  Processes may subscribe to a `topic` (an atom) and will then receive every
-  message published to that topic. Messages are delivered with the standard
-  Elixir `send/2` function as a tagged tuple:
+  Processes may subscribe to a `topic` and will then receive every message
+  published to that topic. Messages are delivered with the standard Elixir
+  `send/2` function as a tagged tuple:
 
       {:jobr, topic, msg}
 
+  A topic is either an **atom** (`:news`) for internal application events or a
+  **binary** (`"sensors/room1/temp"`) for topics bridged in from MQTT. Both
+  kinds live in the same registry and are matched exactly; a binary topic is
+  never converted to an atom, so untrusted topic strings cannot exhaust the
+  atom table.
+
+  Note that matching is exact: MQTT wildcards (`+`, `#`) are a *subscription*
+  concern handled by the MQTT client, not by this broker. A subscriber to
+  `"sensors/room1/temp"` receives only that exact topic.
   ## Design
 
   Subscriptions are tracked in a `Registry` started with `keys: :duplicate`,
@@ -28,12 +37,26 @@ defmodule Jobr.Broker do
       iex> receive do {:jobr, :news, msg} -> msg end
       "hello"
 
+  Binary topics work the same way:
+
+      iex> Jobr.Broker.subscribe("sensors/room1/temp")
+      :ok
+      iex> Jobr.Broker.send("sensors/room1/temp", "21.5")
+      :ok
+      iex> receive do {:jobr, "sensors/room1/temp", msg} -> msg end
+      "21.5"
+
   """
 
   @registry Jobr.Broker.Registry
 
-  @typedoc "A topic is an atom identifying a channel of messages."
-  @type topic :: atom()
+  @typedoc """
+  A topic identifying a channel of messages.
+
+  Atoms are used for internal application events; binaries are used for MQTT
+  topics such as `"sensors/room1/temp"`.
+  """
+  @type topic :: atom() | binary()
 
   @typedoc "The tagged tuple delivered to subscribers."
   @type message :: {:jobr, topic(), term()}
@@ -64,7 +87,7 @@ defmodule Jobr.Broker do
 
   """
   @spec subscribe(topic()) :: :ok
-  def subscribe(topic) when is_atom(topic) do
+  def subscribe(topic) when is_atom(topic) or is_binary(topic) do
     {:ok, _} = Registry.register(@registry, topic, nil)
     :ok
   end
@@ -87,7 +110,7 @@ defmodule Jobr.Broker do
 
   """
   @spec unsubscribe(topic()) :: :ok
-  def unsubscribe(topic) when is_atom(topic) do
+  def unsubscribe(topic) when is_atom(topic) or is_binary(topic) do
     Registry.unregister(@registry, topic)
   end
 
@@ -104,7 +127,7 @@ defmodule Jobr.Broker do
 
   """
   @spec send(topic(), term()) :: :ok
-  def send(topic, msg) when is_atom(topic) do
+  def send(topic, msg) when is_atom(topic) or is_binary(topic) do
     message = {:jobr, topic, msg}
 
     @registry
@@ -128,7 +151,7 @@ defmodule Jobr.Broker do
 
   """
   @spec subscribers(topic()) :: [pid()]
-  def subscribers(topic) when is_atom(topic) do
+  def subscribers(topic) when is_atom(topic) or is_binary(topic) do
     @registry
     |> Registry.lookup(topic)
     |> Enum.map(fn {pid, _value} -> pid end)

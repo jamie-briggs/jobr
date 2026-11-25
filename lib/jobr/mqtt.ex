@@ -6,6 +6,22 @@ defmodule Jobr.Mqtt do
   inbound message onto the local `Jobr.Broker`, so the rest of the application
   subscribes to `Jobr.Broker` topics and never has to know about MQTT.
 
+  ## Routing
+
+  The MQTT topic string is used directly as the `Jobr.Broker` topic, and the
+  payload is forwarded unchanged. A message arriving on
+  `"sensors/room1/temp"` is delivered to `Jobr.Broker` subscribers as:
+
+      {:jobr, "sensors/room1/temp", payload}
+
+  so a process interested in one device only subscribes to that exact topic:
+
+      Jobr.Broker.subscribe("sensors/room1/temp")
+
+  Wildcard matching (`+`, `#`) is a *subscription* concern and is handled by
+  the MQTT client via the `:topics` option; `Jobr.Broker` itself matches topics
+  exactly. Subscribe to a wildcard here and you will not receive the messages
+  that matched it upstream — subscribe to the concrete topics you care about.
   ## Protocol versions
 
   Both MQTT 5.0 and MQTT 3.1.1 are supported by the same module; pick one with
@@ -147,11 +163,10 @@ defmodule Jobr.Mqtt do
     topic = Enum.join(topic, "/")
     Logger.debug(fn -> "[Jobr.Mqtt] <- #{topic}: #{inspect(payload)}" end)
 
-    # `Jobr.Broker` topics are atoms, but MQTT topics are strings, so every
-    # inbound message is delivered to the fixed `:mqtt` topic with the real
-    # MQTT topic carried in the payload. Subscribers match on the topic they
-    # care about from there.
-    :ok = Jobr.Broker.send(:mqtt, {topic, payload})
+    # `Jobr.Broker` accepts binary topics, so the MQTT topic string is used
+    # directly as the broker topic and the payload is forwarded unchanged.
+    # Subscribers get `{:jobr, "sensors/room1/temp", payload}`.
+    :ok = Jobr.Broker.send(topic, payload)
 
     {:ok, state}
   end

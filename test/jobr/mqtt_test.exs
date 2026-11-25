@@ -69,10 +69,10 @@ defmodule Jobr.MqttTest do
       topic = unique_topic()
       _pid = start_bridge!(topic, 5)
 
-      :ok = Jobr.Broker.subscribe(:mqtt)
+      :ok = Jobr.Broker.subscribe(topic)
       :ok = Jobr.Mqtt.publish_to_broker(topic, "hello-v5", qos: 1)
 
-      assert_receive {:jobr, :mqtt, {^topic, "hello-v5"}}, 2_000
+      assert_receive {:jobr, ^topic, "hello-v5"}, 2_000
     end
 
     test "publishing while connected returns :ok" do
@@ -95,10 +95,10 @@ defmodule Jobr.MqttTest do
       topic = unique_topic()
       _pid = start_bridge!(topic, 4)
 
-      :ok = Jobr.Broker.subscribe(:mqtt)
+      :ok = Jobr.Broker.subscribe(topic)
       :ok = Jobr.Mqtt.publish_to_broker(topic, "hello-v311", qos: 1)
 
-      assert_receive {:jobr, :mqtt, {^topic, "hello-v311"}}, 2_000
+      assert_receive {:jobr, ^topic, "hello-v311"}, 2_000
     end
   end
 
@@ -108,10 +108,23 @@ defmodule Jobr.MqttTest do
       full_topic = "#{prefix}/sensor/temp"
       _pid = start_bridge!("#{prefix}/#", 5)
 
-      :ok = Jobr.Broker.subscribe(:mqtt)
+      :ok = Jobr.Broker.subscribe(full_topic)
       :ok = Jobr.Mqtt.publish_to_broker(full_topic, "21.5", qos: 1)
 
-      assert_receive {:jobr, :mqtt, {^full_topic, "21.5"}}, 2_000
+      assert_receive {:jobr, ^full_topic, "21.5"}, 2_000
+    end
+
+    test "a subscriber to one topic does not receive another topic's message" do
+      prefix = "jobr/iso/#{System.unique_integer([:positive])}"
+      wanted = "#{prefix}/a"
+      other = "#{prefix}/b"
+      _pid = start_bridge!("#{prefix}/#", 5)
+
+      :ok = Jobr.Broker.subscribe(wanted)
+      :ok = Jobr.Mqtt.publish_to_broker(other, "not-for-me", qos: 1)
+
+      refute_receive {:jobr, ^other, _}, 500
+      refute_receive {:jobr, ^wanted, _}, 0
     end
   end
 
